@@ -23,7 +23,7 @@ if __name__ == "__main__":
     #   'export_onnx'       表示将模型导出为onnx，需要pytorch1.7.1以上。
     #   'predict_onnx'      表示利用导出的onnx模型进行预测，相关参数的修改在yolo.py_416行左右处的YOLO_ONNX
     #----------------------------------------------------------------------------------------------------------#
-    mode = "heatmap"
+    mode = "dir_predict"
     #-------------------------------------------------------------------------#
     #   crop                指定了是否在单张图片预测后对目标进行截取
     #   count               指定了是否进行目标的计数
@@ -55,11 +55,13 @@ if __name__ == "__main__":
     #-------------------------------------------------------------------------#
     #   dir_origin_path     指定了用于检测的图片的文件夹路径
     #   dir_save_path       指定了检测完图片的保存路径
+    #   SAVE_RESULT         指定了是否要保存检测完的图片
     #   
-    #   dir_origin_path和dir_save_path仅在mode='dir_predict'时有效
+    #   这3个变量仅在mode='dir_predict'时有效
     #-------------------------------------------------------------------------#
     dir_origin_path = "img/"
     dir_save_path   = "img_out/"
+    SAVE_RESULT = True
     #-------------------------------------------------------------------------#
     #   heatmap_save_path   热力图的保存路径，默认保存在model_data下
     #   
@@ -153,15 +155,16 @@ if __name__ == "__main__":
 
         from tqdm import tqdm
 
+        if not os.path.exists(dir_save_path):
+            os.makedirs(dir_save_path)
         img_names = os.listdir(dir_origin_path)
         for img_name in tqdm(img_names):
             if img_name.lower().endswith(('.bmp', '.dib', '.png', '.jpg', '.jpeg', '.pbm', '.pgm', '.ppm', '.tif', '.tiff')):
                 image_path  = os.path.join(dir_origin_path, img_name)
                 image       = Image.open(image_path)
-                r_image     = yolo.detect_image(image)
-                if not os.path.exists(dir_save_path):
-                    os.makedirs(dir_save_path)
-                r_image.save(os.path.join(dir_save_path, img_name.replace(".jpg", ".png")), quality=95, subsampling=0)
+                r_image     = yolo.detect_image(image, SAVE_RESULT)
+                if SAVE_RESULT:
+                    r_image.save(os.path.join(dir_save_path, img_name.replace(".jpg", ".png")), quality=95, subsampling=0)
 
     elif mode == "heatmap":
         while True:

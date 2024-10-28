@@ -107,7 +107,7 @@ class YOLO(object):
     #---------------------------------------------------#
     #   检测图片
     #---------------------------------------------------#
-    def detect_image(self, image):
+    def detect_image(self, image, SAVE_RESULT=True):
         #---------------------------------------------------#
         #   计算输入图片的高和宽
         #---------------------------------------------------#
@@ -148,43 +148,44 @@ class YOLO(object):
             top_label   = np.array(results[0][:, 6], dtype = 'int32')
             top_conf    = results[0][:, 4] * results[0][:, 5]
             top_boxes   = results[0][:, :4]
-        #---------------------------------------------------------#
-        #   设置字体与边框厚度
-        #---------------------------------------------------------#
-        font        = ImageFont.truetype(font='model_data/simhei.ttf', size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
-        thickness   = int(max((image.size[0] + image.size[1]) // np.mean(self.input_shape), 1))
-        
-        #---------------------------------------------------------#
-        #   图像绘制
-        #---------------------------------------------------------#
-        for i, c in list(enumerate(top_label)):
-            predicted_class = self.class_names[int(c)]
-            box             = top_boxes[i]
-            score           = top_conf[i]
-
-            top, left, bottom, right = box
-
-            top     = max(0, np.floor(top).astype('int32'))
-            left    = max(0, np.floor(left).astype('int32'))
-            bottom  = min(image.size[1], np.floor(bottom).astype('int32'))
-            right   = min(image.size[0], np.floor(right).astype('int32'))
-
-            label = '{} {:.2f}'.format(predicted_class, score)
-            draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
-            label = label.encode('utf-8')
-            print(label, top, left, bottom, right)
+        if SAVE_RESULT:
+            #---------------------------------------------------------#
+            #   设置字体与边框厚度
+            #---------------------------------------------------------#
+            font        = ImageFont.truetype(font='model_data/simhei.ttf', size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
+            thickness   = int(max((image.size[0] + image.size[1]) // np.mean(self.input_shape), 1))
             
-            if top - label_size[1] >= 0:
-                text_origin = np.array([left, top - label_size[1]])
-            else:
-                text_origin = np.array([left, top + 1])
+            #---------------------------------------------------------#
+            #   图像绘制
+            #---------------------------------------------------------#
+            for i, c in list(enumerate(top_label)):
+                predicted_class = self.class_names[int(c)]
+                box             = top_boxes[i]
+                score           = top_conf[i]
 
-            for i in range(thickness):
-                draw.rectangle([left + i, top + i, right - i, bottom - i], outline=self.colors[c])
-            draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
-            draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
-            del draw
+                top, left, bottom, right = box
+
+                top     = max(0, np.floor(top).astype('int32'))
+                left    = max(0, np.floor(left).astype('int32'))
+                bottom  = min(image.size[1], np.floor(bottom).astype('int32'))
+                right   = min(image.size[0], np.floor(right).astype('int32'))
+
+                label = '{} {:.2f}'.format(predicted_class, score)
+                draw = ImageDraw.Draw(image)
+                label_size = draw.textsize(label, font)
+                label = label.encode('utf-8')
+                print(label, top, left, bottom, right)
+                
+                if top - label_size[1] >= 0:
+                    text_origin = np.array([left, top - label_size[1]])
+                else:
+                    text_origin = np.array([left, top + 1])
+
+                for i in range(thickness):
+                    draw.rectangle([left + i, top + i, right - i, bottom - i], outline=self.colors[c])
+                draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
+                draw.text(text_origin, str(label,'UTF-8'), fill=(0, 0, 0), font=font)
+                del draw
 
         return image
 
@@ -290,7 +291,8 @@ class YOLO(object):
         plt.show()
 
     def get_map_txt(self, image_id, image, class_names, map_out_path):
-        f = open(os.path.join(map_out_path, "detection-results/"+image_id+".txt"),"w") 
+        fpath = os.path.join(map_out_path, "detection-results/" + str(image_id) + ".txt")
+        f = open(fpath, "w") 
         image_shape = np.array(np.shape(image)[0:2])
         #---------------------------------------------------------#
         #   在这里将图像转换成RGB图像，防止灰度图在预测时报错。
@@ -338,7 +340,9 @@ class YOLO(object):
             if predicted_class not in class_names:
                 continue
 
-            f.write("%s %s %s %s %s %s\n" % (predicted_class, score[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
+            content = "%s %s %s %s %s %s\n" % (predicted_class, score[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom)))
+
+            f.write(content)
 
         f.close()
         return 
