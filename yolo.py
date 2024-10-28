@@ -12,6 +12,12 @@ from utils.utils import (cvtColor, get_anchors, get_classes, preprocess_input,
                          resize_image)
 from utils.utils_bbox import DecodeBox
 
+def test_cuda():
+    if torch.cuda.is_available():
+        print("CUDA is available. Using GPU.")
+    else:
+        print("CUDA is not available. Using CPU.")
+
 '''
 训练自己的数据集必看注释！
 '''
@@ -96,6 +102,7 @@ class YOLO(object):
         #---------------------------------------------------#
         self.net    = YoloBody(self.anchors_mask, self.num_classes)
         device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'device={device}')
         self.net.load_state_dict(torch.load(self.model_path, map_location=device))
         self.net    = self.net.eval()
         print('{} model, anchors, and classes loaded.'.format(self.model_path))

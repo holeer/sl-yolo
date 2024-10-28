@@ -9,11 +9,15 @@ from utils.utils_map import get_coco_map, get_map
 from utils.common import split_even_odd_indices
 from yolo import YOLO
 
-CLASSES_PATH = 'model_data/classes.txt'
+MAP_MODE = 3
+CLASSES_PATH = 'VOCdevkit/classes.txt' # single_class
+# CLASSES_PATH = 'model_data/classes.txt' # multi_class
 MAP_VIS = False # something wrong in this feature
 VOCD_PATH = 'VOCdevkit'
 IMAGE_ID_FILE = "ImageSets/Main/val.txt"
 MAP_OUT_PATH = 'map_out'
+MIN_OVERLAP      = 0.5
+SCORE_THREHOLD   = 0.5
 
 def __mode01(img_list,class_names):
     print("Load model.")
@@ -26,23 +30,23 @@ def __mode01(img_list,class_names):
             os.makedirs(MAP_VIS_DIR)
     image_id = 0
     for img in tqdm(img_list):
-        # useless
-        # image_path = os.path.join(VOCdevkit_path, "JPEGImages/"+image_id)
         image = Image.open(img)
         if map_vis:
             basename = os.path.basename(img)
             image.save(os.path.join(MAP_VIS_DIR, basename))
-        # something wrong in this function
         yolo.get_map_txt(image_id, image, class_names, MAP_OUT_PATH)
         image_id += 1
-    print("Get predict result done.")
+    print("Prepare predict result done.")
 
 
 def __mode02(coordinates_list,class_names):
-    print("Get ground truth result.")
-    for coordinates in tqdm(coordinates_list):
-        with open(os.path.join(map_out_path, "ground-truth/" + coordinates + ".txt"), "w") as new_f:
-            root = ET.parse(os.path.join(VOCdevkit_path, "Annotations/" + coordinates + ".xml")).getroot()
+    # xml to txt
+    print("Prepare ground truth result.")
+    for loop_id, coordinates in tqdm(enumerate(coordinates_list)):
+        new_f_path = os.path.join(map_out_path, f"ground-truth/{loop_id}.txt")
+        with open(new_f_path, "w") as new_f:
+            xml_file = os.path.join(VOCdevkit_path, f"Annotations/{loop_id}.xml")
+            root = ET.parse(xml_file).getroot()
             for obj in root.findall('object'):
                 difficult_flag = False
                 if obj.find('difficult') != None:
@@ -57,12 +61,11 @@ def __mode02(coordinates_list,class_names):
                 top = bndbox.find('ymin').text
                 right = bndbox.find('xmax').text
                 bottom = bndbox.find('ymax').text
-
                 if difficult_flag:
                     new_f.write("%s %s %s %s %s difficult\n" % (obj_name, left, top, right, bottom))
                 else:
                     new_f.write("%s %s %s %s %s\n" % (obj_name, left, top, right, bottom))
-    print("Get ground truth result done.")
+    print("Prepare ground truth result done.")
 
 
 if __name__ == "__main__":
@@ -81,7 +84,7 @@ if __name__ == "__main__":
     #   map_mode为3代表仅仅计算VOC_map。
     #   map_mode为4代表利用COCO工具箱计算当前数据集的0.50:0.95map。需要获得预测结果、获得真实框后并安装pycocotools才行
     #-------------------------------------------------------------------------------------------------------------------#
-    map_mode        = 0
+    map_mode        = MAP_MODE
     #-------------------------------------------------------#
     #   此处的classes_path用于指定需要测量VOC_map的类别
     #   一般情况下与训练和预测所用的classes_path一致即可
@@ -91,7 +94,7 @@ if __name__ == "__main__":
     #   MINOVERLAP用于指定想要获得的mAP0.x
     #   比如计算mAP0.75，可以设定MINOVERLAP = 0.75。
     #-------------------------------------------------------#
-    MINOVERLAP      = 0.5
+    min_overlap      = MIN_OVERLAP
     #-------------------------------------------------------#
     #   map_vis用于指定是否开启VOC_map计算的可视化
     #-------------------------------------------------------#
@@ -129,7 +132,7 @@ if __name__ == "__main__":
 
     if map_mode == 0 or map_mode == 3:
         print("Get map.")
-        get_map(MINOVERLAP, True, path = map_out_path)
+        get_map(min_overlap, True, map_out_path, SCORE_THREHOLD)
         print("Get map done.")
 
     if map_mode == 4:

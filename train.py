@@ -5,7 +5,9 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
+from torch.distributed import is_mpi_available
 from torch.utils.data import DataLoader
+import os
 
 from nets.yolo import YoloBody
 from nets.yolo_training import YOLOLoss, weights_init
@@ -13,6 +15,23 @@ from utils.callbacks import LossHistory
 from utils.dataloader import YoloDataset, yolo_dataset_collate
 from utils.utils import get_anchors, get_classes
 from utils.utils_fit import fit_one_epoch
+
+# define params
+CLASSES_PATH = 'VOCdevkit/classes.txt'
+ANCHORS_PATH = 'model_data/yolo_anchors.txt'
+MODEL_PATH = 'model_data/yolo4_weights.pth'
+ANNOTATION_PATH = 'VOCdevkit/ImageSets/Main'
+LOG_PATH = 'logs/'
+INPUT_SHAPE = [640, 640]
+NUM_WORKERS = 2
+
+# check costom
+assert all(element % 32 == 0 for element in INPUT_SHAPE)
+
+def handle_annnotation_path(ap):
+    train_path = os.path.join(ap, 'train.txt')
+    val_path = os.path.join(ap, 'val.txt')
+    return train_path, val_path
 
 '''
 训练自己的目标检测模型一定需要注意以下几点：
@@ -36,6 +55,16 @@ from utils.utils_fit import fit_one_epoch
    这些都是经验上，只能靠各位同学多查询资料和自己试试了。
 '''
 if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(current_dir)
+    common_dir = os.path.join(project_dir, 'common')
+    sys.path.insert(0, common_dir)
+    from common.os_utils import check_exist
+    # check I/O
+    check_exist('files', CLASSES_PATH, ANCHORS_PATH, MODEL_PATH)
+    check_exist('dirs', ANNOTATION_PATH, LOG_PATH)
     # -------------------------------#
     #   是否使用Cuda
     #   没有GPU可以设置成False
@@ -44,12 +73,12 @@ if __name__ == "__main__":
     # --------------------------------------------------------#
     #   训练前一定要修改classes_path，使其对应自己的数据集
     # --------------------------------------------------------#
-    classes_path = 'VOCdevkit/classes.txt'
+    classes_path = CLASSES_PATH
     # ---------------------------------------------------------------------#
     #   anchors_path代表先验框对应的txt文件，一般不修改。
     #   anchors_mask用于帮助代码找到对应的先验框，一般不修改。
     # ---------------------------------------------------------------------#
-    anchors_path = 'model_data/yolo_anchors.txt'
+    anchors_path = ANCHORS_PATH
     anchors_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
     # ----------------------------------------------------------------------------------------------------------------------------#
     #   权值文件的下载请看README，可以通过网盘下载。模型的 预训练权重 对不同数据集是通用的，因为特征是通用的。
@@ -68,11 +97,11 @@ if __name__ == "__main__":
     #   网络一般不从0开始训练，至少会使用主干部分的权值，有些论文提到可以不用预训练，主要原因是他们 数据集较大 且 调参能力优秀。
     #   如果一定要训练网络的主干部分，可以了解imagenet数据集，首先训练分类模型，分类模型的 主干部分 和该模型通用，基于此进行训练。
     # ----------------------------------------------------------------------------------------------------------------------------#
-    model_path = 'model_data/yolo4_weights.pth'
+    model_path = MODEL_PATH
     # ------------------------------------------------------#
     #   输入的shape大小，一定要是32的倍数
     # ------------------------------------------------------#
-    input_shape = [640, 640]
+    input_shape = INPUT_SHAPE
     # ------------------------------------------------------#
     #   Yolov4的tricks应用
     #   mosaic 马赛克数据增强 True or False 
@@ -115,12 +144,13 @@ if __name__ == "__main__":
     #   开启后会加快数据读取速度，但是会占用更多内存
     #   内存较小的电脑可以设置为2或者0  
     # ------------------------------------------------------#
-    num_workers = 0
+    num_workers = NUM_WORKERS
     # ----------------------------------------------------#
     #   获得图片路径和标签
     # ----------------------------------------------------#
-    train_annotation_path = 'VOCdevkit/ImageSets/Main/train.txt'
-    val_annotation_path = 'VOCdevkit/ImageSets/Main/val.txt'
+    train_path, val_path = handle_annnotation_path(ANNOTATION_PATH)
+    train_annotation_path = train_path
+    val_annotation_path = val_path
 
     # ----------------------------------------------------#
     #   获取classes和anchor
@@ -152,7 +182,7 @@ if __name__ == "__main__":
         model_train = model_train.cuda()
 
     yolo_loss = YOLOLoss(anchors, num_classes, input_shape, Cuda, anchors_mask, label_smoothing)
-    loss_history = LossHistory("logs/")
+    loss_history = LossHistory(LOG_PATH)
 
     # ---------------------------#
     #   读取数据集对应的txt

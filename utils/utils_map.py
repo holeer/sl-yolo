@@ -232,7 +232,7 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
             if i == (len(sorted_values)-1): # largest bar
                 adjust_axes(r, t, fig, axes)
     # set window title
-    fig.canvas.set_window_title(window_title)
+    # fig.canvas.set_window_title(window_title)
     # write classes in y axis
     tick_font_size = 12
     plt.yticks(range(n_classes), sorted_keys, fontsize=tick_font_size)
@@ -267,7 +267,7 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
     # close the plot
     plt.close()
 
-def get_map(MINOVERLAP, draw_plot, path = './map_out'):
+def get_map(min_overlap, draw_plot, path = './map_out', score_threhold=0.5):
     GT_PATH             = os.path.join(path, 'ground-truth')
     DR_PATH             = os.path.join(path, 'detection-results')
     IMG_PATH            = os.path.join(path, 'images-optional')
@@ -425,7 +425,7 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
             for idx, detection in enumerate(dr_data):
                 file_id     = detection["file_id"]
                 score[idx]  = float(detection["confidence"])
-                if score[idx] > 0.5:
+                if score[idx] > score_threhold:
                     score05_idx = idx
 
                 if show_animation:
@@ -467,7 +467,6 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
                 if show_animation:
                     status = "NO MATCH FOUND!" 
                     
-                min_overlap = MINOVERLAP
                 if ovmax >= min_overlap:
                     if "difficult" not in gt_match:
                         if not bool(gt_match["used"]):
@@ -575,11 +574,12 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
             rounded_prec    = [ '%.2f' % elem for elem in prec ]
             rounded_rec     = [ '%.2f' % elem for elem in rec ]
             results_file.write(text + "\n Precision: " + str(rounded_prec) + "\n Recall :" + str(rounded_rec) + "\n\n")
+            temp_segment = "\t||\tscore_threhold={:.2f} : ".format(score_threhold)
             if len(prec)>0:
-                print(text + "\t||\tscore_threhold=0.5 : " + "F1=" + "{0:.2f}".format(F1[score05_idx])\
+                print(text + temp_segment + "F1=" + "{0:.2f}".format(F1[score05_idx])\
                     + " ; Recall=" + "{0:.2f}%".format(rec[score05_idx]*100) + " ; Precision=" + "{0:.2f}%".format(prec[score05_idx]*100))
             else:
-                print(text + "\t||\tscore_threhold=0.5 : F1=0.00% ; Recall=0.00% ; Precision=0.00%")
+                print(text + temp_segment + "F1=0.00% ; Recall=0.00% ; Precision=0.00%")
             ap_dictionary[class_name] = ap
 
             n_images = counter_images_per_class[class_name]
@@ -593,7 +593,7 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
                 plt.fill_between(area_under_curve_x, 0, area_under_curve_y, alpha=0.2, edgecolor='r')
 
                 fig = plt.gcf()
-                fig.canvas.set_window_title('AP ' + class_name)
+                # fig.canvas.set_window_title('AP ' + class_name)
 
                 plt.title('class: ' + text)
                 plt.xlabel('Recall')
@@ -605,7 +605,7 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
                 plt.cla()
 
                 plt.plot(score, F1, "-", color='orangered')
-                plt.title('class: ' + F1_text + "\nscore_threhold=0.5")
+                plt.title('class: ' + F1_text + f"\nscore_threhold={score_threhold}")
                 plt.xlabel('Score_Threhold')
                 plt.ylabel('F1')
                 axes = plt.gca()
@@ -615,7 +615,7 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
                 plt.cla()
 
                 plt.plot(score, rec, "-H", color='gold')
-                plt.title('class: ' + Recall_text + "\nscore_threhold=0.5")
+                plt.title('class: ' + Recall_text + f"\nscore_threhold={score_threhold}")
                 plt.xlabel('Score_Threhold')
                 plt.ylabel('Recall')
                 axes = plt.gca()
@@ -625,7 +625,7 @@ def get_map(MINOVERLAP, draw_plot, path = './map_out'):
                 plt.cla()
 
                 plt.plot(score, prec, "-s", color='palevioletred')
-                plt.title('class: ' + Precision_text + "\nscore_threhold=0.5")
+                plt.title('class: ' + Precision_text + f"\nscore_threhold={score_threhold}")
                 plt.xlabel('Score_Threhold')
                 plt.ylabel('Precision')
                 axes = plt.gca()
