@@ -2,6 +2,5 @@ __pycache__/
 img/
 img_out/
 *.pth
-*.ttf
 VOCdevkit/Annotations/
 VOCdevkit/JPEGImages/
